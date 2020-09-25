@@ -1,4 +1,5 @@
 pub mod messages;
+pub mod serializer;
 
 #[cfg(test)]
 mod tests {

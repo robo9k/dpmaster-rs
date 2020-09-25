@@ -40,16 +40,16 @@ impl GetServersMessage {
         }
     }
 
-    pub fn game_name(self) -> Option<GameName> {
-        self.game_name
+    pub fn game_name(&self) -> Option<&GameName> {
+        self.game_name.as_ref()
     }
 
-    pub fn protocol_number(self) -> ProtocolNumber {
+    pub fn protocol_number(&self) -> ProtocolNumber {
         self.protocol_number
     }
 
-    pub fn filter_options(self) -> Vec<FilterOption> {
-        self.filter_options
+    pub fn filter_options(&self) -> &[FilterOption] {
+        &self.filter_options[..]
     }
 }
 
