@@ -1,11 +1,11 @@
 //! serializer for messages
 
 use crate::messages::{
-    FilterOption, GameName, GetServersMessage, GetServersResponse, ProtocolNumber,
+    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage, ProtocolNumber,
 };
 use cookie_factory::bytes::{be_u16, be_u8};
 use cookie_factory::combinator::{cond, slice, string};
-use cookie_factory::multi::{all, many_ref, separated_list};
+use cookie_factory::multi::many_ref;
 use cookie_factory::sequence::tuple;
 use cookie_factory::{SerializeFn, WriteContext};
 use std::io::Write;
@@ -18,18 +18,27 @@ fn gen_game_name<'a, 'b: 'a, W: Write + 'a>(game_name: &'b GameName) -> impl Ser
     slice(&game_name[..])
 }
 
+fn gen_gametype<'a, 'b: 'a, W: Write + 'a>(gametype: &'b Gametype) -> impl SerializeFn<W> + 'a {
+    slice(&gametype[..])
+}
+
 fn gen_protocol_number<W: Write>(protocol_number: ProtocolNumber) -> impl SerializeFn<W> {
     string(protocol_number.to_string())
 }
 
-fn gen_filter_option<'a, W: Write>(filter_option: &'a FilterOption) -> impl SerializeFn<W> + 'a {
-    move |out: WriteContext<W>| match filter_option {
-        FilterOption::Gametype(ref x) => tuple((slice(b"gametype="), slice(x)))(out),
-        FilterOption::Empty => slice(b"empty")(out),
-        FilterOption::Full => slice(b"full")(out),
-        FilterOption::IPv4 => slice(b"ipv4")(out),
-        FilterOption::IPv6 => slice(b"ipv6")(out),
-    }
+fn gen_filter_options<'a, 'b: 'a, W: Write + 'a>(
+    filter_options: &'b FilterOptions,
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        move |out: WriteContext<W>| match filter_options.gametype() {
+            Some(gametype) => {
+                tuple((slice(b" "), slice(b"gametype="), gen_gametype(gametype)))(out)
+            }
+            None => Ok(out),
+        },
+        cond(filter_options.empty(), slice(b" empty")),
+        cond(filter_options.full(), slice(b" full")),
+    ))
 }
 
 pub fn gen_getservers_message<'a, 'b: 'a, W: Write + 'a>(
@@ -43,16 +52,7 @@ pub fn gen_getservers_message<'a, 'b: 'a, W: Write + 'a>(
             None => Ok(out),
         },
         gen_protocol_number(message.protocol_number()),
-        cond(
-            !message.filter_options().is_empty(),
-            tuple((
-                slice(b" "),
-                separated_list(
-                    slice(b" "),
-                    message.filter_options().iter().map(gen_filter_option),
-                ),
-            )),
-        ),
+        gen_filter_options(message.filter_options()),
     ))
 }
 
@@ -60,17 +60,17 @@ fn gen_socketaddrv4<'a, 'b: 'a, W: Write + 'a>(
     addr: &'b std::net::SocketAddrV4,
 ) -> impl SerializeFn<W> + 'a {
     let octets = addr.ip().octets();
-    move |w| {
+    move |out: WriteContext<W>| {
         tuple((
             slice(b"\\"),
             many_ref(&octets[..], |&i| be_u8(i)),
             be_u16(addr.port()),
-        ))(w)
+        ))(out)
     }
 }
 
 pub fn gen_getserversresponse_message<'a, 'b: 'a, W: Write + 'a>(
-    message: &'b GetServersResponse,
+    message: &'b GetServersResponseMessage,
 ) -> impl SerializeFn<W> + 'a {
     tuple((
         gen_message_prefix(),
@@ -114,36 +114,40 @@ mod tests {
         message: GetServersMessage::new(
             None,
             67,
-            vec![
-                FilterOption::Gametype(b"0".to_vec()),
-                FilterOption::Empty,
-                FilterOption::Full,
-            ],
+            FilterOptions::new(Some(b"0".to_vec()), true, true),
         ),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers 67 gametype=0 empty full"[..]
     });
 
     gen_message_test!(test_gen_getservers_message_woet {
-        message: GetServersMessage::new(None, 84, vec![],),
+        message: GetServersMessage::new(None, 84, FilterOptions::new(None, false, false),),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers 84"[..]
     });
 
     gen_message_test!(test_gen_getservers_message_nexuiz {
-        message: GetServersMessage::new(Some(b"Nexuiz".to_vec()), 3, vec![],),
+        message: GetServersMessage::new(
+            Some(b"Nexuiz".to_vec()),
+            3,
+            FilterOptions::new(None, false, false),
+        ),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers Nexuiz 3"[..]
     });
 
     gen_message_test!(test_gen_getservers_message_qfusion {
-        message: GetServersMessage::new(Some(b"qfusion".to_vec()), 39, vec![FilterOption::Full],),
+        message: GetServersMessage::new(
+            Some(b"qfusion".to_vec()),
+            39,
+            FilterOptions::new(None, false, true)
+        ),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers qfusion 39 full"[..]
     });
 
     gen_message_test!(test_gen_getserversresponse_message {
-        message: GetServersResponse::new(vec!["1.2.3.4:2048".parse().unwrap()], true),
+        message: GetServersResponseMessage::new(vec!["1.2.3.4:2048".parse().unwrap()], true),
         function: gen_getserversresponse_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetserversResponse\\\x01\x02\x03\x04\x08\x00\\EOT\0\0\0"[..]
     });
