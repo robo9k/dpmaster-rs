@@ -1,8 +1,11 @@
 //! serializer for messages
 
-use crate::messages::{FilterOption, GameName, GetServersMessage, ProtocolNumber};
+use crate::messages::{
+    FilterOption, GameName, GetServersMessage, GetServersResponse, ProtocolNumber,
+};
+use cookie_factory::bytes::{be_u16, be_u8};
 use cookie_factory::combinator::{cond, slice, string};
-use cookie_factory::multi::separated_list;
+use cookie_factory::multi::{all, many_ref, separated_list};
 use cookie_factory::sequence::tuple;
 use cookie_factory::{SerializeFn, WriteContext};
 use std::io::Write;
@@ -50,6 +53,30 @@ pub fn gen_getservers_message<'a, 'b: 'a, W: Write + 'a>(
                 ),
             )),
         ),
+    ))
+}
+
+fn gen_socketaddrv4<'a, 'b: 'a, W: Write + 'a>(
+    addr: &'b std::net::SocketAddrV4,
+) -> impl SerializeFn<W> + 'a {
+    let octets = addr.ip().octets();
+    move |w| {
+        tuple((
+            slice(b"\\"),
+            many_ref(&octets[..], |&i| be_u8(i)),
+            be_u16(addr.port()),
+        ))(w)
+    }
+}
+
+pub fn gen_getserversresponse_message<'a, 'b: 'a, W: Write + 'a>(
+    message: &'b GetServersResponse,
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        gen_message_prefix(),
+        slice(b"getserversResponse"),
+        many_ref(message.servers(), gen_socketaddrv4),
+        cond(message.eot(), slice(b"\\EOT\0\0\0")),
     ))
 }
 
@@ -113,5 +140,11 @@ mod tests {
         message: GetServersMessage::new(Some(b"qfusion".to_vec()), 39, vec![FilterOption::Full],),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers qfusion 39 full"[..]
+    });
+
+    gen_message_test!(test_gen_getserversresponse_message {
+        message: GetServersResponse::new(vec!["1.2.3.4:2048".parse().unwrap()], true),
+        function: gen_getserversresponse_message,
+        buffer: &b"\xFF\xFF\xFF\xFFgetserversResponse\\\x01\x02\x03\x04\x08\x00\\EOT\0\0\0"[..]
     });
 }

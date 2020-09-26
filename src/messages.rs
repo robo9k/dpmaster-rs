@@ -64,11 +64,11 @@ impl GetServersResponse {
         Self { servers, eot }
     }
 
-    pub fn servers(self) -> Vec<std::net::SocketAddrV4> {
-        self.servers
+    pub fn servers(&self) -> &[std::net::SocketAddrV4] {
+        &self.servers[..]
     }
 
-    pub fn eot(self) -> bool {
+    pub fn eot(&self) -> bool {
         self.eot
     }
 }
