@@ -10,6 +10,7 @@ pub type GameName = Vec<u8>;
 pub type Gametype = Vec<u8>;
 
 /// filter options for `getservers`
+#[derive(Debug, PartialEq, Eq)]
 pub struct FilterOptions {
     /// `gametype=X` filter option
     gametype: Option<Gametype>,
@@ -42,6 +43,7 @@ impl FilterOptions {
 }
 
 /// `getservers` message
+#[derive(Debug, PartialEq, Eq)]
 pub struct GetServersMessage {
     game_name: Option<GameName>,
     protocol_number: ProtocolNumber,
