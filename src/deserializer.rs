@@ -22,10 +22,7 @@ fn is_space(chr: u8) -> bool {
 }
 
 fn game_name(input: &[u8]) -> IResult<&[u8], Option<Vec<u8>>> {
-    let (input, game_name) = dbg_dmp(
-        opt(take_while1(|chr| !(is_digit(chr) || is_space(chr)))),
-        "game_name",
-    )(input)?;
+    let (input, game_name) = opt(take_while1(|chr| !(is_digit(chr) || is_space(chr))))(input)?;
     Ok((input, game_name.map(|game_name| game_name.to_vec())))
 }
 
@@ -108,7 +105,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_getservers_message() {
+    fn test_getservers_message_q3a() {
         let data = &b"getservers 67 gametype=0 empty full"[..];
         let result = getservers(data);
         assert_eq!(
@@ -119,6 +116,53 @@ mod tests {
                     None,
                     67,
                     FilterOptions::new(Some(b"0".to_vec()), true, true)
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getservers_message_woet() {
+        let data = &b"getservers 84"[..];
+        let result = getservers(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetServersMessage::new(None, 84, FilterOptions::new(None, false, false))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getservers_message_nexuiz() {
+        let data = &b"getservers Nexuiz 3"[..];
+        let result = getservers(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetServersMessage::new(
+                    Some(b"Nexuiz".to_vec()),
+                    3,
+                    FilterOptions::new(None, false, false)
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getservers_message_qfusion() {
+        let data = &b"getservers qfusion 39 full"[..];
+        let result = getservers(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetServersMessage::new(
+                    Some(b"qfusion".to_vec()),
+                    39,
+                    FilterOptions::new(None, false, true)
                 )
             ))
         );
