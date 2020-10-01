@@ -7,7 +7,7 @@ use nom::character::is_digit;
 use nom::combinator::opt;
 use nom::multi::separated_list;
 use nom::sequence::{preceded, tuple};
-use nom::{dbg_dmp, IResult};
+use nom::IResult;
 
 fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8]> {
     tag(b"\xFF\xFF\xFF\xFF")(input)
@@ -98,6 +98,10 @@ fn getservers_payload(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
 
 pub fn getservers(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
     preceded(getservers_command, getservers_payload)(input)
+}
+
+pub fn getservers_message(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
+    preceded(message_prefix, getservers)(input)
 }
 
 #[cfg(test)]
