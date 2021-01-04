@@ -2,4 +2,5 @@
 
 members = [
     "dpmaster-proto",
+    "dpmaster-codec",
 ]
