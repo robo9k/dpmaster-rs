@@ -1,13 +1,15 @@
 //! deserializer for messages
 
-use crate::messages::{FilterOptions, GetServersMessage};
+use crate::messages::{FilterOptions, GetServersMessage, GetServersResponseMessage};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::is_digit;
 use nom::combinator::opt;
-use nom::multi::separated_list;
+use nom::multi::{many_till, separated_list};
+use nom::number::complete::{be_u16, be_u8};
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
+use std::net::{Ipv4Addr, SocketAddrV4};
 
 fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8]> {
     tag(b"\xFF\xFF\xFF\xFF")(input)
@@ -104,6 +106,44 @@ pub fn getservers_message(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
     preceded(message_prefix, getservers)(input)
 }
 
+fn socketaddr4(input: &[u8]) -> IResult<&[u8], SocketAddrV4> {
+    let (input, (a, b, c, d, port)) = tuple((be_u8, be_u8, be_u8, be_u8, be_u16))(input)?;
+    let ipv4addr = Ipv4Addr::new(a, b, c, d);
+    let socketaddrv4 = SocketAddrV4::new(ipv4addr, port);
+    Ok((input, socketaddrv4))
+}
+
+fn socketaddr4_separator(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    tag(b"\\")(input)
+}
+
+fn eot(input: &[u8]) -> IResult<&[u8], bool> {
+    match input {
+        b"\\EOT\0\0\0" => Ok((&input[7..], true)),
+        b"" => Ok((input, false)),
+        _ => Err(nom::Err::Error((input, nom::error::ErrorKind::Tag))),
+    }
+}
+
+fn getserversresponse_payload(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+    let (input, (servers, eot)) =
+        many_till(preceded(socketaddr4_separator, socketaddr4), eot)(input)?;
+    let getserversresponse = GetServersResponseMessage::new(servers, eot);
+    Ok((input, getserversresponse))
+}
+
+fn getserversresponse_command(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    tag(b"getserversResponse")(input)
+}
+
+pub fn getserversresponse(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+    preceded(getserversresponse_command, getserversresponse_payload)(input)
+}
+
+pub fn getserversresponse_message(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+    preceded(message_prefix, getserversresponse)(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,6 +207,42 @@ mod tests {
                     Some(b"qfusion".to_vec()),
                     39,
                     FilterOptions::new(None, false, true)
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getserversresponse_multiple() {
+        let data = &b"getserversResponse\\\xC0\x00\x02\x01\x6D\x38\\\xC6\x33\x64\x02\x6D\x39\\\xCB\x00\x71\x03\x6D\x3A"[..];
+        let result = getserversresponse(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetServersResponseMessage::new(
+                    vec![
+                        SocketAddrV4::new(Ipv4Addr::new(192, 0, 2, 1), 27960),
+                        SocketAddrV4::new(Ipv4Addr::new(198, 51, 100, 2), 27961),
+                        SocketAddrV4::new(Ipv4Addr::new(203, 0, 113, 3), 27962),
+                    ],
+                    false
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getserversresponse_eot() {
+        let data = &b"getserversResponse\\\x01\x02\x03\x04\x08\x00\\EOT\0\0\0"[..];
+        let result = getserversresponse(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetServersResponseMessage::new(
+                    vec![SocketAddrV4::new(Ipv4Addr::new(1, 2, 3, 4), 2048),],
+                    true
                 )
             ))
         );

@@ -77,6 +77,7 @@ impl GetServersMessage {
 }
 
 /// `getserversResponse` message
+#[derive(Debug, PartialEq, Eq)]
 pub struct GetServersResponseMessage {
     servers: Vec<std::net::SocketAddrV4>,
     eot: bool,
