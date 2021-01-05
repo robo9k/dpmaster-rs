@@ -8,3 +8,8 @@ edition = "2018"
 
 [dependencies]
 dpmaster-proto = { version = "0.1.0", path = "../dpmaster-proto" }
+dpmaster-codec = { version = "0.1.0", path = "../dpmaster-codec" }
+tokio = { version = "1", features = ["net", "macros", "rt-multi-thread"] }
+tokio-util = { version = "0.6.0", features = ["codec", "net"] }
+futures = "0.3.8"
+tokio-stream = "0.1.0"

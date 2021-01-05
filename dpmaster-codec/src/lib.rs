@@ -5,9 +5,15 @@ use dpmaster_proto::messages::{GetServersMessage, GetServersResponseMessage};
 use dpmaster_proto::serializer::gen_getservers_message;
 use tokio_util::codec::{Decoder, Encoder};
 
-struct GetServersMessageEncoder {}
+pub struct GameClientCodec(());
 
-impl Encoder<GetServersMessage> for GetServersMessageEncoder {
+impl GameClientCodec {
+    pub fn new() -> Self {
+        Self(())
+    }
+}
+
+impl Encoder<GetServersMessage> for GameClientCodec {
     type Error = std::io::Error;
 
     fn encode(&mut self, item: GetServersMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
@@ -17,9 +23,7 @@ impl Encoder<GetServersMessage> for GetServersMessageEncoder {
     }
 }
 
-struct GetServersResponseMessageDecoder {}
-
-impl Decoder for GetServersResponseMessageDecoder {
+impl Decoder for GameClientCodec {
     type Item = GetServersResponseMessage;
     type Error = std::io::Error;
 
