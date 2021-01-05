@@ -1,0 +1,10 @@
+[package]
+name = "dpmaster-game-client-bin"
+version = "0.1.0"
+authors = ["robot9001 <robo9k@symlink.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dpmaster-proto = { version = "0.1.0", path = "../dpmaster-proto" }

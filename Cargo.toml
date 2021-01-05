@@ -3,4 +3,5 @@
 members = [
     "dpmaster-proto",
     "dpmaster-codec",
+    "dpmaster-game-client-bin",
 ]
