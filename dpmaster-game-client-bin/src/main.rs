@@ -13,20 +13,22 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut framed = UdpFramed::new(socket, GameClientCodec::new());
 
-    let addr = "master.ioquake3.org:27950"
+    let addr = "master.worldofpadman.com:27955"
         .to_socket_addrs()
         .unwrap()
         .next()
         .unwrap();
+    println!("master server address: {:?}", addr);
 
-    framed
-        .send((
-            GetServersMessage::new(None, 68, FilterOptions::new(None, true, true)),
-            addr,
-        ))
-        .await?;
+    let getservers = GetServersMessage::new(
+        Some(b"WorldofPadman".to_vec()),
+        71,
+        FilterOptions::new(None, true, true),
+    );
+    println!("Sending request {:?}", getservers);
+    framed.send((getservers, addr)).await?;
 
-    let (getserversresponse, addr) = framed.next().map(|e| e.unwrap()).await?;
+    let (getserversresponse, _addr) = framed.next().map(|e| e.unwrap()).await?;
     println!("response: {:?}", getserversresponse);
 
     Ok(())
