@@ -30,7 +30,7 @@ struct GetServersOpts {
     master_server: String,
 
     #[clap(short = 'n', long, parse(from_str))]
-    game_name: Bytes,
+    game_name: Option<Bytes>,
 
     #[clap(short, long)]
     protocol_number: u32,
@@ -83,7 +83,7 @@ pub async fn main() -> Result<(), Report> {
             );
 
             let getservers = GetServersMessage::new(
-                Some(getservers_opts.game_name),
+                getservers_opts.game_name,
                 getservers_opts.protocol_number,
                 FilterOptions::new(
                     getservers_opts.game_type,
