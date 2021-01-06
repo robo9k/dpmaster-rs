@@ -10,6 +10,7 @@ use tokio_stream::StreamExt;
 use tokio_util::udp::UdpFramed;
 use tracing::{debug, info};
 
+/// Query dpmaster servers like a game client
 #[derive(Clap, Debug)]
 struct Opts {
     #[clap(subcommand)]
@@ -18,6 +19,7 @@ struct Opts {
 
 #[derive(Clap, Debug)]
 enum SubCommand {
+    /// Sends a `getservers` query
     GetServers(GetServersOpts),
 }
 
@@ -26,21 +28,27 @@ type Bytes = Vec<u8>;
 // TODO: local_bind_addr
 #[derive(Clap, Debug)]
 struct GetServersOpts {
+    /// Address of the master server to query, e.g. `master.ioquake3.org:27950`
     #[clap(short, long)]
     master_server: String,
 
+    /// Game name to query for, e.g. `Quake3Arena`
     #[clap(short = 'n', long, parse(from_str))]
     game_name: Option<Bytes>,
 
+    /// Protocol version to query for, e.g. `68`
     #[clap(short, long)]
     protocol_number: u32,
 
+    /// Game type to query for, e.g. `4` for CTF in Q3A
     #[clap(short = 't', long, parse(from_str))]
     game_type: Option<Bytes>,
 
+    /// Ask for empty servers in query
     #[clap(short, long)]
     empty: bool,
 
+    /// Ask for full servers in query
     #[clap(short, long)]
     full: bool,
 }
