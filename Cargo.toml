@@ -5,3 +5,7 @@ members = [
     "dpmaster-codec",
     "dpmaster-game-client-bin",
 ]
+
+# https://docs.rs/color-eyre/0.5.10/color_eyre/#improving-perf-on-debug-builds
+[profile.dev.package.backtrace]
+opt-level = 3
