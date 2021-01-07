@@ -5,7 +5,7 @@ let
 in pkgs.mkShell {
   buildInputs = [
     rust
-
+    pkgs.rustup
     # keep this line if you use bash
     pkgs.bashInteractive
   ];
