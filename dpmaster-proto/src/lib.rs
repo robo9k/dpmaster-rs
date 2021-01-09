@@ -1,6 +1,13 @@
 pub mod deserializer;
+pub mod error;
 pub mod messages;
 pub mod serializer;
+
+pub use messages::{GameName, Gametype, GetServersExtResponseMessage, GetServersResponseMessage};
+
+pub use crate::error::ProtocolError;
+/// [std::result::Result] alias with [ProtocolError] as `Err`
+pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 #[cfg(test)]
 mod tests {
