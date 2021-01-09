@@ -21,7 +21,7 @@ pub struct FilterOptions {
 }
 
 impl FilterOptions {
-    pub fn new(gametype: Option<Vec<u8>>, empty: bool, full: bool) -> Self {
+    pub fn new(gametype: Option<Gametype>, empty: bool, full: bool) -> Self {
         Self {
             gametype,
             empty,
