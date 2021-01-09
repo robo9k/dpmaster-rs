@@ -3,7 +3,7 @@ use color_eyre::{eyre::Report, eyre::WrapErr};
 use dpmaster_codec::GameClientCodec;
 use dpmaster_proto::messages::{FilterOptions, GetServersMessage};
 use eyre::eyre;
-use futures::{FutureExt, SinkExt};
+use futures::SinkExt;
 use std::net::ToSocketAddrs;
 use tokio::net::UdpSocket;
 use tokio_stream::StreamExt;
@@ -102,8 +102,16 @@ pub async fn main() -> Result<(), Report> {
             info!(request = ? getservers, "Sending request");
             framed.send((getservers, addr)).await?;
 
-            let (getserversresponse, _addr) = framed.next().map(|e| e.unwrap()).await?; // TODO
-            info!(response = ? getserversresponse, "Recieved response");
+            while let Some((getserversresponse, _addr)) = framed
+                .try_next()
+                .await
+                .wrap_err("Could not recieve message from master server")?
+            {
+                info!(response = ? getserversresponse, "Recieved message from master server");
+                if getserversresponse.eot() {
+                    break;
+                }
+            }
         }
     }
 
