@@ -5,7 +5,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::is_digit;
 use nom::combinator::opt;
-use nom::multi::{many_till, separated_list};
+use nom::multi::{many_till, separated_list0};
 use nom::number::complete::{be_u16, be_u8};
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
@@ -65,7 +65,7 @@ fn filteroptions(input: &[u8]) -> IResult<&[u8], FilterOptions> {
     let mut empty: bool = false;
     let mut full: bool = false;
 
-    let (input, filteroptions) = separated_list(tag(b" "), filteroption)(input)?;
+    let (input, filteroptions) = separated_list0(tag(b" "), filteroption)(input)?;
     for filteroption in &filteroptions {
         match filteroption {
             FilterOption::Gametype(ref g) => {
@@ -121,7 +121,10 @@ fn eot(input: &[u8]) -> IResult<&[u8], bool> {
     match input {
         b"\\EOT\0\0\0" => Ok((&input[7..], true)),
         b"" => Ok((input, false)),
-        _ => Err(nom::Err::Error((input, nom::error::ErrorKind::Tag))),
+        _ => Err(nom::Err::Error(nom::error::make_error(
+            input,
+            nom::error::ErrorKind::Tag,
+        ))),
     }
 }
 
