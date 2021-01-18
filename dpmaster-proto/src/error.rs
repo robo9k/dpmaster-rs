@@ -3,7 +3,7 @@
 use thiserror::Error;
 
 /// Possible crate errors
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ProtocolError {
     /// Invalid [`crate::GameName`]
     #[error("Invalid game name ({byte} at {offset})")]

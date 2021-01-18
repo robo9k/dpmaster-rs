@@ -2,6 +2,8 @@
 
 use crate::{ProtocolError, Result};
 
+use memchr::memchr2;
+
 /// protocol number
 pub type ProtocolNumber = u32;
 
@@ -12,14 +14,35 @@ pub struct GameName(Vec<u8>);
 impl GameName {
     /// Creates a new game name from a container of bytes.
     ///
+    /// Game names can contain neither null bytes nor whitespace.
+    ///
     /// # Examples
     /// ```
     /// use dpmaster_proto::GameName;
     /// let game_name = GameName::new(b"Nexuiz".to_vec());
     /// assert!(game_name.is_ok());
     /// ```
+    ///
+    /// # Errors
+    /// This function will return an error if the supplied bytes contain a
+    /// null/`0` byte or whitespace/`' '`.
+    /// The [`ProtocolError::InvalidGameName`] error will include the invalid byte
+    /// as well as the first offset it occurred at.
+    /// ```
+    /// use dpmaster_proto::{GameName, ProtocolError};
+    /// let game_name = GameName::new(b"invalid example".to_vec());
+    /// assert_eq!(game_name, Err(ProtocolError::InvalidGameName {byte: b' ', offset: 7}));
+    /// ```
+    // FIXME: Comparing private fields in a public doctest feels wrong. Maybe compare debug output instead?
     pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
-        Ok(Self(t.into()))
+        let bytes = t.into();
+        match memchr2(b'\0', b' ', &bytes) {
+            Some(i) => Err(ProtocolError::InvalidGameName {
+                offset: i,
+                byte: bytes[i],
+            }),
+            None => Ok(Self(bytes)),
+        }
     }
 }
 
