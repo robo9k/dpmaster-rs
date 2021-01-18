@@ -1,6 +1,9 @@
 //! deserializer for messages
 
-use crate::messages::{FilterOptions, GetServersMessage, GetServersResponseMessage};
+use crate::error::DeserializationError;
+use crate::messages::{
+    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage,
+};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::is_digit;
@@ -11,11 +14,11 @@ use nom::sequence::{preceded, tuple};
 use nom::IResult;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8]> {
+fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"\xFF\xFF\xFF\xFF")(input)
 }
 
-fn getservers_command(input: &[u8]) -> IResult<&[u8], &[u8]> {
+fn getservers_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"getservers")(input)
 }
 
@@ -23,12 +26,12 @@ fn is_space(chr: u8) -> bool {
     b' ' == chr
 }
 
-fn game_name(input: &[u8]) -> IResult<&[u8], Option<Vec<u8>>> {
+fn game_name(input: &[u8]) -> IResult<&[u8], Option<GameName>, DeserializationError<&[u8]>> {
     let (input, game_name) = opt(take_while1(|chr| !(is_digit(chr) || is_space(chr))))(input)?;
     Ok((input, game_name.map(|game_name| game_name.to_vec())))
 }
 
-fn protocol_number(input: &[u8]) -> IResult<&[u8], u32> {
+fn protocol_number(input: &[u8]) -> IResult<&[u8], u32, DeserializationError<&[u8]>> {
     let (input, protocol_bytes) = take_while(is_digit)(input)?;
     let protocol_str = std::str::from_utf8(protocol_bytes).unwrap(); // TODO
     let protocol_number = u32::from_str_radix(protocol_str, 10).unwrap(); // TODO
@@ -36,40 +39,42 @@ fn protocol_number(input: &[u8]) -> IResult<&[u8], u32> {
 }
 
 enum FilterOption {
-    Gametype(Vec<u8>),
+    Gametype(Gametype),
     Empty,
     Full,
 }
 
-fn filteroption_gametype(input: &[u8]) -> IResult<&[u8], FilterOption> {
+fn filteroption_gametype(
+    input: &[u8],
+) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
     let (input, gametype) = preceded(tag(b"gametype="), take_while1(|chr| chr != b' '))(input)?;
     Ok((input, FilterOption::Gametype(gametype.to_vec())))
 }
 
-fn filteroption_empty(input: &[u8]) -> IResult<&[u8], FilterOption> {
+fn filteroption_empty(input: &[u8]) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
     let (input, _) = tag(b"empty")(input)?;
     Ok((input, FilterOption::Empty))
 }
 
-fn filteroption_full(input: &[u8]) -> IResult<&[u8], FilterOption> {
+fn filteroption_full(input: &[u8]) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
     let (input, _) = tag(b"full")(input)?;
     Ok((input, FilterOption::Full))
 }
 
-fn filteroption(input: &[u8]) -> IResult<&[u8], FilterOption> {
+fn filteroption(input: &[u8]) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
     alt((filteroption_gametype, filteroption_empty, filteroption_full))(input)
 }
 
-fn filteroptions(input: &[u8]) -> IResult<&[u8], FilterOptions> {
-    let mut gametype: Option<Vec<u8>> = None;
+fn filteroptions(input: &[u8]) -> IResult<&[u8], FilterOptions, DeserializationError<&[u8]>> {
+    let mut gametype: Option<Gametype> = None;
     let mut empty: bool = false;
     let mut full: bool = false;
 
     let (input, filteroptions) = separated_list0(tag(b" "), filteroption)(input)?;
-    for filteroption in &filteroptions {
+    for filteroption in filteroptions {
         match filteroption {
-            FilterOption::Gametype(ref g) => {
-                gametype = Some(g.to_vec());
+            FilterOption::Gametype(g) => {
+                gametype = Some(g);
             }
             FilterOption::Empty => {
                 empty = true;
@@ -83,7 +88,9 @@ fn filteroptions(input: &[u8]) -> IResult<&[u8], FilterOptions> {
     Ok((input, FilterOptions::new(gametype, empty, full)))
 }
 
-fn getservers_payload(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
+fn getservers_payload(
+    input: &[u8],
+) -> IResult<&[u8], GetServersMessage, DeserializationError<&[u8]>> {
     let (input, (_, game_name, _, protocol_number, _, filteroptions)) = tuple((
         take_while1(is_space),
         game_name,
@@ -98,26 +105,28 @@ fn getservers_payload(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
     ))
 }
 
-pub fn getservers(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
+pub fn getservers(input: &[u8]) -> IResult<&[u8], GetServersMessage, DeserializationError<&[u8]>> {
     preceded(getservers_command, getservers_payload)(input)
 }
 
-pub fn getservers_message(input: &[u8]) -> IResult<&[u8], GetServersMessage> {
+pub fn getservers_message(
+    input: &[u8],
+) -> IResult<&[u8], GetServersMessage, DeserializationError<&[u8]>> {
     preceded(message_prefix, getservers)(input)
 }
 
-fn socketaddr4(input: &[u8]) -> IResult<&[u8], SocketAddrV4> {
+fn socketaddr4(input: &[u8]) -> IResult<&[u8], SocketAddrV4, DeserializationError<&[u8]>> {
     let (input, (a, b, c, d, port)) = tuple((be_u8, be_u8, be_u8, be_u8, be_u16))(input)?;
     let ipv4addr = Ipv4Addr::new(a, b, c, d);
     let socketaddrv4 = SocketAddrV4::new(ipv4addr, port);
     Ok((input, socketaddrv4))
 }
 
-fn socketaddr4_separator(input: &[u8]) -> IResult<&[u8], &[u8]> {
+fn socketaddr4_separator(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"\\")(input)
 }
 
-fn eot(input: &[u8]) -> IResult<&[u8], bool> {
+fn eot(input: &[u8]) -> IResult<&[u8], bool, DeserializationError<&[u8]>> {
     match input {
         b"\\EOT\0\0\0" => Ok((&input[7..], true)),
         b"" => Ok((input, false)),
@@ -128,22 +137,28 @@ fn eot(input: &[u8]) -> IResult<&[u8], bool> {
     }
 }
 
-fn getserversresponse_payload(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+fn getserversresponse_payload(
+    input: &[u8],
+) -> IResult<&[u8], GetServersResponseMessage, DeserializationError<&[u8]>> {
     let (input, (servers, eot)) =
         many_till(preceded(socketaddr4_separator, socketaddr4), eot)(input)?;
     let getserversresponse = GetServersResponseMessage::new(servers, eot);
     Ok((input, getserversresponse))
 }
 
-fn getserversresponse_command(input: &[u8]) -> IResult<&[u8], &[u8]> {
+fn getserversresponse_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"getserversResponse")(input)
 }
 
-pub fn getserversresponse(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+pub fn getserversresponse(
+    input: &[u8],
+) -> IResult<&[u8], GetServersResponseMessage, DeserializationError<&[u8]>> {
     preceded(getserversresponse_command, getserversresponse_payload)(input)
 }
 
-pub fn getserversresponse_message(input: &[u8]) -> IResult<&[u8], GetServersResponseMessage> {
+pub fn getserversresponse_message(
+    input: &[u8],
+) -> IResult<&[u8], GetServersResponseMessage, DeserializationError<&[u8]>> {
     preceded(message_prefix, getserversresponse)(input)
 }
 
