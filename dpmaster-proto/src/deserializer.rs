@@ -28,7 +28,10 @@ fn is_space(chr: u8) -> bool {
 
 fn game_name(input: &[u8]) -> IResult<&[u8], Option<GameName>, DeserializationError<&[u8]>> {
     let (input, game_name) = opt(take_while1(|chr| !(is_digit(chr) || is_space(chr))))(input)?;
-    Ok((input, game_name.map(|game_name| game_name.to_vec())))
+    Ok((
+        input,
+        game_name.map(|game_name| GameName::new(game_name.to_vec()).unwrap()),
+    )) // TODO
 }
 
 fn protocol_number(input: &[u8]) -> IResult<&[u8], u32, DeserializationError<&[u8]>> {
@@ -205,7 +208,7 @@ mod tests {
             Ok((
                 &vec![][..],
                 GetServersMessage::new(
-                    Some(b"Nexuiz".to_vec()),
+                    Some(GameName::new(b"Nexuiz".to_vec()).unwrap()),
                     3,
                     FilterOptions::new(None, false, false)
                 )
@@ -222,7 +225,7 @@ mod tests {
             Ok((
                 &vec![][..],
                 GetServersMessage::new(
-                    Some(b"qfusion".to_vec()),
+                    Some(GameName::new(b"qfusion".to_vec()).unwrap()),
                     39,
                     FilterOptions::new(None, false, true)
                 )

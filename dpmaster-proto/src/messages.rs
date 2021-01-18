@@ -1,10 +1,43 @@
 //! protocol messages
 
+use crate::{ProtocolError, Result};
+
 /// protocol number
 pub type ProtocolNumber = u32;
 
 /// game name
-pub type GameName = Vec<u8>;
+#[derive(Debug, PartialEq, Eq)]
+pub struct GameName(Vec<u8>);
+
+impl GameName {
+    /// Creates a new game name from a container of bytes.
+    ///
+    /// # Examples
+    /// ```
+    /// use dpmaster_proto::GameName;
+    /// let game_name = GameName::new(b"Nexuiz".to_vec());
+    /// assert!(game_name.is_ok());
+    /// ```
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        Ok(Self(t.into()))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for GameName {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+impl std::str::FromStr for GameName {
+    type Err = ProtocolError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Self::new(s.as_bytes().to_vec())?)
+    }
+}
 
 /// game type
 pub type Gametype = Vec<u8>;
@@ -170,7 +203,7 @@ impl GetServersExtMessage {
     }
 
     pub fn game_name(&self) -> &GameName {
-        self.game_name.as_ref()
+        &self.game_name
     }
 
     pub fn protocol_number(&self) -> ProtocolNumber {

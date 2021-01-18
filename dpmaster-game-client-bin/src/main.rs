@@ -1,7 +1,7 @@
 use clap::Clap;
 use color_eyre::{eyre::Report, eyre::WrapErr};
 use dpmaster_codec::GameClientCodec;
-use dpmaster_proto::messages::{FilterOptions, GetServersMessage};
+use dpmaster_proto::messages::{FilterOptions, GameName, GetServersMessage};
 use eyre::eyre;
 use futures::SinkExt;
 use std::net::ToSocketAddrs;
@@ -33,8 +33,8 @@ struct GetServersOpts {
     master_server: String,
 
     /// Game name to query for, e.g. `Quake3Arena`
-    #[clap(short = 'n', long, parse(from_str))]
-    game_name: Option<Bytes>,
+    #[clap(short = 'n', long, parse(try_from_str))]
+    game_name: Option<GameName>,
 
     /// Protocol version to query for, e.g. `68`
     #[clap(short, long)]

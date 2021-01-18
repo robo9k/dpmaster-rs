@@ -12,7 +12,7 @@ pub type Result<T> = std::result::Result<T, ProtocolError>;
 #[cfg(test)]
 mod tests {
     use super::deserializer::getservers_message;
-    use super::messages::{FilterOptions, GetServersMessage};
+    use super::messages::{FilterOptions, GameName, GetServersMessage};
     use super::serializer::gen_getservers_message;
     use cookie_factory::gen_simple;
     use std::io::Cursor;
@@ -76,7 +76,7 @@ mod tests {
 
     roundtrip_getservers_message_test!(test_roundtrip_getservers_message_nexuiz {
         message: GetServersMessage::new(
-            Some(b"Nexuiz".to_vec()),
+            Some(GameName::new(b"Nexuiz".to_vec()).unwrap()),
             3,
             FilterOptions::new(None, false, false)
         )
@@ -84,7 +84,7 @@ mod tests {
 
     roundtrip_getservers_message_test!(test_roundtrip_getservers_message_qfusion {
         message: GetServersMessage::new(
-            Some(b"qfusion".to_vec()),
+            Some(GameName::new(b"qfusion".to_vec()).unwrap()),
             39,
             FilterOptions::new(None, false, true)
         )
