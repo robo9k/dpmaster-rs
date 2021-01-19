@@ -1,0 +1,32 @@
+
+[package]
+name = "dpmaster-proto-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.3"
+
+[dependencies.dpmaster-proto]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "getservers"
+path = "fuzz_targets/getservers.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "getservers_response"
+path = "fuzz_targets/getservers_response.rs"
+test = false
+doc = false
