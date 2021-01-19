@@ -28,9 +28,19 @@ impl Decoder for GameClientCodec {
     type Error = std::io::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        getserversresponse_message(&src[..])
-            .map_err(|_e| std::io::Error::new(std::io::ErrorKind::Other, "uhoh")) // TODO
-            .map(|(_, m)| Some(m))
+        if src.is_empty() {
+            Ok(None)
+        } else {
+            let msg = getserversresponse_message(&src[..]);
+            match msg {
+                Err(_e) => Err(std::io::Error::new(std::io::ErrorKind::Other, "uhoh")), // TODO
+                Ok((_i, msg)) => {
+                    // the parser operates on whole packets, so we can assume it parsed one on success
+                    src.clear();
+                    Ok(Some(msg))
+                }
+            }
+        }
     }
 }
 
