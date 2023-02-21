@@ -10,7 +10,7 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
+libfuzzer-sys = "0.4"
 
 [dependencies.dpmaster-proto]
 path = ".."
@@ -20,13 +20,31 @@ path = ".."
 members = ["."]
 
 [[bin]]
-name = "getservers"
-path = "fuzz_targets/getservers.rs"
+name = "getinfo"
+path = "fuzz_targets/getinfo.rs"
 test = false
 doc = false
 
 [[bin]]
 name = "getservers_response"
 path = "fuzz_targets/getservers_response.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "getservers"
+path = "fuzz_targets/getservers.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "heartbeat"
+path = "fuzz_targets/heartbeat.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "info_response"
+path = "fuzz_targets/info_response.rs"
 test = false
 doc = false
