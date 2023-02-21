@@ -2,7 +2,7 @@
 | ----------------------- | :-------: | :---------: |
 | `heartbeat`             | ✓         | ✓         |
 | `getinfo`               | ✓         | ✓         |
-| `infoResponse`          | ❌         | ❌         |
+| `infoResponse`          | ✓         | ✓         |
 | `getservers`            | ✓         | ✓         |
 | `getserversResponse`    | ✓         | ✓         |
 | `getserversExt`         | ❌         | ❌         |
