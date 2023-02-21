@@ -50,6 +50,105 @@ impl GetInfoMessage {
     }
 }
 
+pub type MaxClientsNumber = std::num::NonZeroU32;
+
+pub type ClientsNumber = u32;
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct InfoKey(Vec<u8>);
+
+impl InfoKey {
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        let bytes = t.into();
+
+        Ok(Self(bytes))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for InfoKey {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoValue(Vec<u8>);
+
+impl InfoValue {
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        let bytes = t.into();
+
+        Ok(Self(bytes))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for InfoValue {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Info(indexmap::IndexMap<InfoKey, InfoValue>);
+
+impl Info {
+    pub fn new() -> Self {
+        Self(indexmap::IndexMap::new())
+    }
+
+    pub fn insert(&mut self, key: InfoKey, value: InfoValue) {
+        self.0.insert(key, value);
+    }
+
+    pub fn iter(&self) -> indexmap::map::Iter<'_, InfoKey, InfoValue> {
+        self.0.iter()
+    }
+
+    pub fn challenge(&self) -> &Challenge {
+        todo!();
+    }
+
+    pub fn sv_maxclients(&self) -> MaxClientsNumber {
+        todo!();
+    }
+
+    pub fn protocol(&self) -> ProtocolNumber {
+        todo!();
+    }
+
+    pub fn clients(&self) -> ClientsNumber {
+        todo!();
+    }
+
+    pub fn gamename(&self) -> Option<&GameName> {
+        todo!();
+    }
+
+    pub fn gametype(&self) -> Option<&GameType> {
+        todo!();
+    }
+}
+
+/// `infoResponse` message
+#[derive(Debug, PartialEq, Eq)]
+pub struct InfoResponseMessage {
+    info: Info,
+}
+
+impl InfoResponseMessage {
+    pub fn new(info: Info) -> Self {
+        Self { info }
+    }
+
+    pub fn info(&self) -> &Info {
+        &self.info
+    }
+}
+
 // protocol name
 #[derive(Debug, PartialEq, Eq)]
 pub struct ProtocolName(Vec<u8>);
@@ -150,13 +249,37 @@ impl std::str::FromStr for GameName {
 }
 
 /// game type
-pub type Gametype = Vec<u8>;
+#[derive(Debug, PartialEq, Eq)]
+pub struct GameType(Vec<u8>);
+
+impl GameType {
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        let bytes = t.into();
+        Ok(Self(bytes))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for GameType {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+impl std::str::FromStr for GameType {
+    type Err = ProtocolError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Self::new(s.as_bytes().to_vec())?)
+    }
+}
 
 /// filter options for `getservers`
 #[derive(Debug, PartialEq, Eq)]
 pub struct FilterOptions {
     /// `gametype=X` filter option
-    gametype: Option<Gametype>,
+    gametype: Option<GameType>,
     /// empty servers option
     empty: bool,
     /// full servers option
@@ -164,7 +287,7 @@ pub struct FilterOptions {
 }
 
 impl FilterOptions {
-    pub fn new(gametype: Option<Gametype>, empty: bool, full: bool) -> Self {
+    pub fn new(gametype: Option<GameType>, empty: bool, full: bool) -> Self {
         Self {
             gametype,
             empty,
@@ -172,7 +295,7 @@ impl FilterOptions {
         }
     }
 
-    pub fn gametype(&self) -> Option<&Gametype> {
+    pub fn gametype(&self) -> Option<&GameType> {
         self.gametype.as_ref()
     }
 
@@ -243,7 +366,7 @@ impl GetServersResponseMessage {
 /// filter options for `getserversExt`
 pub struct FilterExtOptions {
     /// `gametype=X` filter option
-    gametype: Option<Gametype>,
+    gametype: Option<GameType>,
     /// empty servers option
     empty: bool,
     /// full servers option
@@ -256,7 +379,7 @@ pub struct FilterExtOptions {
 
 impl FilterExtOptions {
     pub fn new(
-        gametype: Option<Gametype>,
+        gametype: Option<GameType>,
         empty: bool,
         full: bool,
         ipv4: bool,
@@ -271,7 +394,7 @@ impl FilterExtOptions {
         }
     }
 
-    pub fn gametype(&self) -> Option<&Gametype> {
+    pub fn gametype(&self) -> Option<&GameType> {
         self.gametype.as_ref()
     }
 

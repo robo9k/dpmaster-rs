@@ -2,14 +2,15 @@
 
 use crate::error::DeserializationError;
 use crate::messages::{
-    Challenge, FilterOptions, GameName, Gametype, GetInfoMessage, GetServersMessage,
-    GetServersResponseMessage, HeartbeatMessage, ProtocolName,
+    Challenge, FilterOptions, GameName, GameType, GetInfoMessage, GetServersMessage,
+    GetServersResponseMessage, HeartbeatMessage, Info, InfoKey, InfoResponseMessage, InfoValue,
+    ProtocolName,
 };
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::{is_digit, is_newline};
 use nom::combinator::opt;
-use nom::multi::{many_till, separated_list0};
+use nom::multi::{many1, many_till, separated_list0};
 use nom::number::complete::{be_u16, be_u8};
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
@@ -70,6 +71,53 @@ pub fn getinfo_message(
     preceded(message_prefix, getinfo)(input)
 }
 
+fn inforesponse_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
+    tag(b"infoResponse")(input)
+}
+
+fn info_key(input: &[u8]) -> IResult<&[u8], InfoKey, DeserializationError<&[u8]>> {
+    let (input, k) = take_while1(|chr| b'\\' != chr)(input)?;
+    Ok((input, InfoKey::new(k.to_vec()).unwrap())) // TODO
+}
+
+fn info_value(input: &[u8]) -> IResult<&[u8], InfoValue, DeserializationError<&[u8]>> {
+    let (input, v) = take_while1(|chr| b'\\' != chr)(input)?;
+    Ok((input, InfoValue::new(v.to_vec()).unwrap())) // TODO
+}
+
+fn info_kv(input: &[u8]) -> IResult<&[u8], (InfoKey, InfoValue), DeserializationError<&[u8]>> {
+    let (input, (_, k, _, v)) = tuple((tag(b"\\"), info_key, tag(b"\\"), info_value))(input)?;
+    Ok((input, (k, v)))
+}
+
+fn info(input: &[u8]) -> IResult<&[u8], Info, DeserializationError<&[u8]>> {
+    let (input, kv) = many1(info_kv)(input)?;
+    let mut info = Info::new();
+    for (key, value) in kv {
+        info.insert(key, value);
+    }
+    Ok((input, info))
+}
+
+fn inforesponse_payload(
+    input: &[u8],
+) -> IResult<&[u8], InfoResponseMessage, DeserializationError<&[u8]>> {
+    let (input, (_, info)) = tuple((tag(b"\n"), info))(input)?;
+    Ok((input, InfoResponseMessage::new(info)))
+}
+
+pub fn inforesponse(
+    input: &[u8],
+) -> IResult<&[u8], InfoResponseMessage, DeserializationError<&[u8]>> {
+    preceded(inforesponse_command, inforesponse_payload)(input)
+}
+
+pub fn inforesponse_message(
+    input: &[u8],
+) -> IResult<&[u8], InfoResponseMessage, DeserializationError<&[u8]>> {
+    preceded(message_prefix, inforesponse)(input)
+}
+
 fn getservers_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"getservers")(input)
 }
@@ -94,7 +142,7 @@ fn protocol_number(input: &[u8]) -> IResult<&[u8], u32, DeserializationError<&[u
 }
 
 enum FilterOption {
-    Gametype(Gametype),
+    GameType(GameType),
     Empty,
     Full,
 }
@@ -103,7 +151,10 @@ fn filteroption_gametype(
     input: &[u8],
 ) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
     let (input, gametype) = preceded(tag(b"gametype="), take_while1(|chr| chr != b' '))(input)?;
-    Ok((input, FilterOption::Gametype(gametype.to_vec())))
+    Ok((
+        input,
+        FilterOption::GameType(GameType::new(gametype.to_vec()).unwrap()),
+    ))
 }
 
 fn filteroption_empty(input: &[u8]) -> IResult<&[u8], FilterOption, DeserializationError<&[u8]>> {
@@ -121,14 +172,14 @@ fn filteroption(input: &[u8]) -> IResult<&[u8], FilterOption, DeserializationErr
 }
 
 fn filteroptions(input: &[u8]) -> IResult<&[u8], FilterOptions, DeserializationError<&[u8]>> {
-    let mut gametype: Option<Gametype> = None;
+    let mut gametype: Option<GameType> = None;
     let mut empty: bool = false;
     let mut full: bool = false;
 
     let (input, filteroptions) = separated_list0(tag(b" "), filteroption)(input)?;
     for filteroption in filteroptions {
         match filteroption {
-            FilterOption::Gametype(g) => {
+            FilterOption::GameType(g) => {
                 gametype = Some(g);
             }
             FilterOption::Empty => {
@@ -287,6 +338,22 @@ mod tests {
     }
 
     #[test]
+    fn test_inforesponse_message() {
+        let data = &b"infoResponse\x0A\\sv_maxclients\\8\\clients\\0"[..];
+        let result = inforesponse(data);
+        let mut info = Info::new();
+        info.insert(
+            InfoKey::new(b"sv_maxclients".to_vec()).unwrap(),
+            InfoValue::new(b"8".to_vec()).unwrap(),
+        );
+        info.insert(
+            InfoKey::new(b"clients".to_vec()).unwrap(),
+            InfoValue::new(b"0".to_vec()).unwrap(),
+        );
+        assert_eq!(result, Ok((&vec![][..], InfoResponseMessage::new(info),)));
+    }
+
+    #[test]
     fn test_getservers_message_q3a() {
         let data = &b"getservers 67 gametype=0 empty full"[..];
         let result = getservers(data);
@@ -297,7 +364,7 @@ mod tests {
                 GetServersMessage::new(
                     None,
                     67,
-                    FilterOptions::new(Some(b"0".to_vec()), true, true)
+                    FilterOptions::new(Some(GameType::new(b"0".to_vec()).unwrap()), true, true)
                 )
             ))
         );

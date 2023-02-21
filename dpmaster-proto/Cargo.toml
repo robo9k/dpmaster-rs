@@ -11,3 +11,6 @@ cookie-factory = "0.3.1"
 nom = "6.0.1"
 thiserror = "1.0"
 memchr = "2.3.4"
+indexmap = "1.0.0"
+
+[features]

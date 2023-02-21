@@ -4,8 +4,9 @@ pub mod messages;
 pub mod serializer;
 
 pub use messages::{
-    Challenge, GameName, Gametype, GetInfoMessage, GetServersExtResponseMessage,
-    GetServersResponseMessage, HeartbeatMessage, ProtocolName,
+    Challenge, GameName, GameType, GetInfoMessage, GetServersExtResponseMessage,
+    GetServersResponseMessage, HeartbeatMessage, Info, InfoKey, InfoResponseMessage, InfoValue,
+    ProtocolName,
 };
 
 pub use crate::error::ProtocolError;
@@ -14,12 +15,17 @@ pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 #[cfg(test)]
 mod tests {
-    use super::deserializer::{getinfo_message, getservers_message, heartbeat_message};
-    use super::messages::{
-        Challenge, FilterOptions, GameName, GetInfoMessage, GetServersMessage, HeartbeatMessage,
-        ProtocolName,
+    use super::deserializer::{
+        getinfo_message, getservers_message, heartbeat_message, inforesponse_message,
     };
-    use super::serializer::{gen_getinfo_message, gen_getservers_message, gen_heartbeat_message};
+    use super::messages::{
+        Challenge, FilterOptions, GameName, GameType, GetInfoMessage, GetServersMessage,
+        HeartbeatMessage, Info, InfoKey, InfoResponseMessage, InfoValue, ProtocolName,
+    };
+    use super::serializer::{
+        gen_getinfo_message, gen_getservers_message, gen_heartbeat_message,
+        gen_inforesponse_message,
+    };
     use cookie_factory::gen_simple;
     use std::io::Cursor;
 
@@ -102,6 +108,35 @@ mod tests {
         message: GetInfoMessage::new(Challenge::new(b"A_ch4Lleng3".to_vec()).unwrap(),)
     });
 
+    macro_rules! roundtrip_inforesponse_message_test {
+        (
+        $name:ident {
+            message: $message:expr
+        }
+        ) => {
+            roundtrip_message_test!($name {
+                message: $message,
+                serializer: gen_inforesponse_message,
+                deserializer: inforesponse_message,
+            });
+        };
+    }
+
+    roundtrip_inforesponse_message_test!(test_roundtrip_inforesponse_message {
+        message: InfoResponseMessage::new({
+            let mut info = Info::new();
+            info.insert(
+                InfoKey::new(b"sv_maxclients".to_vec()).unwrap(),
+                InfoValue::new(b"8".to_vec()).unwrap(),
+            );
+            info.insert(
+                InfoKey::new(b"clients".to_vec()).unwrap(),
+                InfoValue::new(b"0".to_vec()).unwrap(),
+            );
+            info
+        })
+    });
+
     macro_rules! roundtrip_getservers_message_test {
         (
         $name:ident {
@@ -120,7 +155,7 @@ mod tests {
         message: GetServersMessage::new(
             None,
             67,
-            FilterOptions::new(Some(b"0".to_vec()), true, true)
+            FilterOptions::new(Some(GameType::new(b"0".to_vec()).unwrap()), true, true)
         )
     });
 

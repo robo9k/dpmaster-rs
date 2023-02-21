@@ -1,8 +1,9 @@
 //! serializer for messages
 
 use crate::messages::{
-    Challenge, FilterOptions, GameName, Gametype, GetInfoMessage, GetServersMessage,
-    GetServersResponseMessage, HeartbeatMessage, ProtocolName, ProtocolNumber,
+    Challenge, FilterOptions, GameName, GameType, GetInfoMessage, GetServersMessage,
+    GetServersResponseMessage, HeartbeatMessage, Info, InfoKey, InfoResponseMessage, InfoValue,
+    ProtocolName, ProtocolNumber,
 };
 use cookie_factory::bytes::{be_u16, be_u8};
 use cookie_factory::combinator::{cond, slice, string};
@@ -46,11 +47,43 @@ pub fn gen_getinfo_message<'a, 'b: 'a, W: Write + 'a>(
     ))
 }
 
+fn gen_infokey<'a, 'b: 'a, W: Write + 'a>(info_key: &'b InfoKey) -> impl SerializeFn<W> + 'a {
+    slice(&info_key[..])
+}
+fn gen_infovalue<'a, 'b: 'a, W: Write + 'a>(info_value: &'b InfoValue) -> impl SerializeFn<W> + 'a {
+    slice(&info_value[..])
+}
+
+fn gen_info_kv<'a, 'b: 'a, W: Write + 'a>(
+    (info_key, info_value): (&'b InfoKey, &'b InfoValue),
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        slice(b"\\"),
+        gen_infokey(info_key),
+        slice(b"\\"),
+        gen_infovalue(info_value),
+    ))
+}
+
+fn gen_info<'a, 'b: 'a, W: Write + 'a>(info: &'b Info) -> impl SerializeFn<W> + 'a {
+    many_ref(info.iter(), gen_info_kv)
+}
+
+pub fn gen_inforesponse_message<'a, 'b: 'a, W: Write + 'a>(
+    message: &'b InfoResponseMessage,
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        gen_message_prefix(),
+        slice(b"infoResponse\x0A"),
+        gen_info(message.info()),
+    ))
+}
+
 fn gen_game_name<'a, 'b: 'a, W: Write + 'a>(game_name: &'b GameName) -> impl SerializeFn<W> + 'a {
     slice(&game_name[..])
 }
 
-fn gen_gametype<'a, 'b: 'a, W: Write + 'a>(gametype: &'b Gametype) -> impl SerializeFn<W> + 'a {
+fn gen_gametype<'a, 'b: 'a, W: Write + 'a>(gametype: &'b GameType) -> impl SerializeFn<W> + 'a {
     slice(&gametype[..])
 }
 
@@ -172,11 +205,28 @@ mod tests {
         buffer: &b"\xFF\xFF\xFF\xFFgetinfo A_ch4Lleng3"[..]
     });
 
+    gen_message_test!(test_gen_inforesponse_message {
+        message: InfoResponseMessage::new({
+            let mut info = Info::new();
+            info.insert(
+                InfoKey::new(b"sv_maxclients".to_vec()).unwrap(),
+                InfoValue::new(b"8".to_vec()).unwrap(),
+            );
+            info.insert(
+                InfoKey::new(b"clients".to_vec()).unwrap(),
+                InfoValue::new(b"0".to_vec()).unwrap(),
+            );
+            info
+        }),
+        function: gen_inforesponse_message,
+        buffer: &b"\xFF\xFF\xFF\xFFinfoResponse\x0A\\sv_maxclients\\8\\clients\\0"[..]
+    });
+
     gen_message_test!(test_gen_getservers_message_q3a {
         message: GetServersMessage::new(
             None,
             67,
-            FilterOptions::new(Some(b"0".to_vec()), true, true),
+            FilterOptions::new(Some(GameType::new(b"0".to_vec()).unwrap()), true, true),
         ),
         function: gen_getservers_message,
         buffer: &b"\xFF\xFF\xFF\xFFgetservers 67 gametype=0 empty full"[..]

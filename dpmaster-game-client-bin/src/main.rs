@@ -1,7 +1,7 @@
-use clap::Clap;
+use clap::Parser as _;
 use color_eyre::{eyre::Report, eyre::WrapErr};
 use dpmaster_codec::GameClientCodec;
-use dpmaster_proto::messages::{FilterOptions, GameName, GetServersMessage};
+use dpmaster_proto::messages::{FilterOptions, GameName, GameType, GetServersMessage};
 use eyre::eyre;
 use futures::SinkExt;
 use std::net::ToSocketAddrs;
@@ -11,22 +11,20 @@ use tokio_util::udp::UdpFramed;
 use tracing::{debug, info};
 
 /// Query dpmaster servers like a game client
-#[derive(Clap, Debug)]
+#[derive(clap::Parser, Debug)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap, Debug)]
+#[derive(clap::Subcommand, Debug)]
 enum SubCommand {
     /// Sends a `getservers` query
     GetServers(GetServersOpts),
 }
 
-type Bytes = Vec<u8>;
-
 // TODO: local_bind_addr
-#[derive(Clap, Debug)]
+#[derive(clap::Parser, Debug)]
 struct GetServersOpts {
     /// Address of the master server to query, e.g. `master.ioquake3.org:27950`
     #[clap(short, long)]
@@ -41,8 +39,8 @@ struct GetServersOpts {
     protocol_number: u32,
 
     /// Game type to query for, e.g. `4` for CTF in Q3A
-    #[clap(short = 't', long, parse(from_str))]
-    game_type: Option<Bytes>,
+    #[clap(short = 't', long, parse(try_from_str))]
+    game_type: Option<GameType>,
 
     /// Ask for empty servers in query
     #[clap(short, long)]

@@ -11,9 +11,9 @@ pub enum ProtocolError {
     /// Invalid [`crate::GameName`]
     #[error("Invalid game name ({byte} at {offset})")]
     InvalidGameName { byte: u8, offset: usize },
-    /// Invalid [`crate::Gametype`]
+    /// Invalid [`crate::GameType`]
     #[error("Invalid gametype ({byte} at {offset})")]
-    InvalidGametype { byte: u8, offset: usize },
+    InvalidGameType { byte: u8, offset: usize },
     /// Invalid end of transmission
     ///
     /// In [`crate::GetServersResponseMessage`] or [`crate::GetServersExtResponseMessage`]
