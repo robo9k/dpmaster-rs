@@ -1,7 +1,7 @@
 | message                 | serialize | deserialize |
 | ----------------------- | :-------: | :---------: |
 | `heartbeat`             | ✓         | ✓         |
-| `getinfo`               | ❌         | ❌         |
+| `getinfo`               | ✓         | ✓         |
 | `infoResponse`          | ❌         | ❌         |
 | `getservers`            | ✓         | ✓         |
 | `getserversResponse`    | ✓         | ✓         |

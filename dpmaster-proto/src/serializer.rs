@@ -1,8 +1,8 @@
 //! serializer for messages
 
 use crate::messages::{
-    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage,
-    HeartbeatMessage, ProtocolName, ProtocolNumber,
+    Challenge, FilterOptions, GameName, Gametype, GetInfoMessage, GetServersMessage,
+    GetServersResponseMessage, HeartbeatMessage, ProtocolName, ProtocolNumber,
 };
 use cookie_factory::bytes::{be_u16, be_u8};
 use cookie_factory::combinator::{cond, slice, string};
@@ -29,6 +29,20 @@ pub fn gen_heartbeat_message<'a, 'b: 'a, W: Write + 'a>(
         slice(b"heartbeat "),
         gen_protocol_name(message.protocol_name()),
         slice(b"\n"),
+    ))
+}
+
+fn gen_challenge<'a, 'b: 'a, W: Write + 'a>(challenge: &'b Challenge) -> impl SerializeFn<W> + 'a {
+    slice(&challenge[..])
+}
+
+pub fn gen_getinfo_message<'a, 'b: 'a, W: Write + 'a>(
+    message: &'b GetInfoMessage,
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        gen_message_prefix(),
+        slice(b"getinfo "),
+        gen_challenge(message.challenge()),
     ))
 }
 
@@ -150,6 +164,12 @@ mod tests {
         message: HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),),
         function: gen_heartbeat_message,
         buffer: &b"\xFF\xFF\xFF\xFFheartbeat EnemyTerritory-1\x0A"[..]
+    });
+
+    gen_message_test!(test_gen_getinfo_message {
+        message: GetInfoMessage::new(Challenge::new(b"A_ch4Lleng3".to_vec()).unwrap(),),
+        function: gen_getinfo_message,
+        buffer: &b"\xFF\xFF\xFF\xFFgetinfo A_ch4Lleng3"[..]
     });
 
     gen_message_test!(test_gen_getservers_message_q3a {

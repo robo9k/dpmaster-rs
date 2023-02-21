@@ -4,8 +4,8 @@ pub mod messages;
 pub mod serializer;
 
 pub use messages::{
-    GameName, Gametype, GetServersExtResponseMessage, GetServersResponseMessage, HeartbeatMessage,
-    ProtocolName,
+    Challenge, GameName, Gametype, GetInfoMessage, GetServersExtResponseMessage,
+    GetServersResponseMessage, HeartbeatMessage, ProtocolName,
 };
 
 pub use crate::error::ProtocolError;
@@ -14,11 +14,12 @@ pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 #[cfg(test)]
 mod tests {
-    use super::deserializer::{getservers_message, heartbeat_message};
+    use super::deserializer::{getinfo_message, getservers_message, heartbeat_message};
     use super::messages::{
-        FilterOptions, GameName, GetServersMessage, HeartbeatMessage, ProtocolName,
+        Challenge, FilterOptions, GameName, GetInfoMessage, GetServersMessage, HeartbeatMessage,
+        ProtocolName,
     };
-    use super::serializer::{gen_getservers_message, gen_heartbeat_message};
+    use super::serializer::{gen_getinfo_message, gen_getservers_message, gen_heartbeat_message};
     use cookie_factory::gen_simple;
     use std::io::Cursor;
 
@@ -81,6 +82,24 @@ mod tests {
 
     roundtrip_heartbeat_message_test!(test_roundtrip_heartbeat_message_woet {
         message: HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),)
+    });
+
+    macro_rules! roundtrip_getinfo_message_test {
+        (
+        $name:ident {
+            message: $message:expr
+        }
+        ) => {
+            roundtrip_message_test!($name {
+                message: $message,
+                serializer: gen_getinfo_message,
+                deserializer: getinfo_message,
+            });
+        };
+    }
+
+    roundtrip_getinfo_message_test!(test_roundtrip_getinfo_message {
+        message: GetInfoMessage::new(Challenge::new(b"A_ch4Lleng3".to_vec()).unwrap(),)
     });
 
     macro_rules! roundtrip_getservers_message_test {

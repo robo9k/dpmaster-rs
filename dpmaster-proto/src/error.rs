@@ -5,6 +5,9 @@ use thiserror::Error;
 /// Possible crate errors
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ProtocolError {
+    /// Invalid [`crate::Challenge`]
+    #[error("Invalid challenge ({byte} at {offset})")]
+    InvalidChallenge { byte: u8, offset: usize },
     /// Invalid [`crate::GameName`]
     #[error("Invalid game name ({byte} at {offset})")]
     InvalidGameName { byte: u8, offset: usize },

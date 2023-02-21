@@ -4,6 +4,52 @@ use crate::{ProtocolError, Result};
 
 use memchr::memchr2;
 
+fn is_ascii_printable(chr: u8) -> bool {
+    chr >= 33 && chr <= 126
+}
+
+// challenge
+#[derive(Debug, PartialEq, Eq)]
+pub struct Challenge(Vec<u8>);
+
+impl Challenge {
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        let bytes = t.into();
+
+        for (offset, byte) in bytes.iter().copied().enumerate() {
+            if !is_ascii_printable(byte) || [b'\\', b'/', b';', b'"', b'%'].contains(&byte) {
+                return Err(ProtocolError::InvalidChallenge { offset, byte });
+            }
+        }
+
+        Ok(Self(bytes))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for Challenge {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+/// `getinfo` message
+#[derive(Debug, PartialEq, Eq)]
+pub struct GetInfoMessage {
+    challenge: Challenge,
+}
+
+impl GetInfoMessage {
+    pub fn new(challenge: Challenge) -> Self {
+        Self { challenge }
+    }
+
+    pub fn challenge(&self) -> &Challenge {
+        &self.challenge
+    }
+}
+
 // protocol name
 #[derive(Debug, PartialEq, Eq)]
 pub struct ProtocolName(Vec<u8>);

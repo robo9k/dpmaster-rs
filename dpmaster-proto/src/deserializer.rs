@@ -2,8 +2,8 @@
 
 use crate::error::DeserializationError;
 use crate::messages::{
-    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage,
-    HeartbeatMessage, ProtocolName,
+    Challenge, FilterOptions, GameName, Gametype, GetInfoMessage, GetServersMessage,
+    GetServersResponseMessage, HeartbeatMessage, ProtocolName,
 };
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
@@ -44,6 +44,30 @@ pub fn heartbeat_message(
     input: &[u8],
 ) -> IResult<&[u8], HeartbeatMessage, DeserializationError<&[u8]>> {
     preceded(message_prefix, heartbeat)(input)
+}
+
+fn getinfo_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
+    tag(b"getinfo")(input)
+}
+
+fn challenge(input: &[u8]) -> IResult<&[u8], Challenge, DeserializationError<&[u8]>> {
+    let (input, challenge) = take_while1(|_| true)(input)?;
+    Ok((input, Challenge::new(challenge.to_vec()).unwrap())) // TODO
+}
+
+fn getinfo_payload(input: &[u8]) -> IResult<&[u8], GetInfoMessage, DeserializationError<&[u8]>> {
+    let (input, (_, challenge)) = tuple((take_while1(is_space), challenge))(input)?;
+    Ok((input, GetInfoMessage::new(challenge)))
+}
+
+pub fn getinfo(input: &[u8]) -> IResult<&[u8], GetInfoMessage, DeserializationError<&[u8]>> {
+    preceded(getinfo_command, getinfo_payload)(input)
+}
+
+pub fn getinfo_message(
+    input: &[u8],
+) -> IResult<&[u8], GetInfoMessage, DeserializationError<&[u8]>> {
+    preceded(message_prefix, getinfo)(input)
 }
 
 fn getservers_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
@@ -245,6 +269,19 @@ mod tests {
             Ok((
                 &vec![][..],
                 HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_getinfo_message() {
+        let data = &b"getinfo A_ch4Lleng3"[..];
+        let result = getinfo(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                GetInfoMessage::new(Challenge::new(b"A_ch4Lleng3".to_vec()).unwrap(),)
             ))
         );
     }
