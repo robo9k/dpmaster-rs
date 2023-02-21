@@ -3,7 +3,10 @@ pub mod error;
 pub mod messages;
 pub mod serializer;
 
-pub use messages::{GameName, Gametype, GetServersExtResponseMessage, GetServersResponseMessage};
+pub use messages::{
+    GameName, Gametype, GetServersExtResponseMessage, GetServersResponseMessage, HeartbeatMessage,
+    ProtocolName,
+};
 
 pub use crate::error::ProtocolError;
 /// [std::result::Result] alias with [ProtocolError] as `Err`
@@ -11,9 +14,11 @@ pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 #[cfg(test)]
 mod tests {
-    use super::deserializer::getservers_message;
-    use super::messages::{FilterOptions, GameName, GetServersMessage};
-    use super::serializer::gen_getservers_message;
+    use super::deserializer::{getservers_message, heartbeat_message};
+    use super::messages::{
+        FilterOptions, GameName, GetServersMessage, HeartbeatMessage, ProtocolName,
+    };
+    use super::serializer::{gen_getservers_message, gen_heartbeat_message};
     use cookie_factory::gen_simple;
     use std::io::Cursor;
 
@@ -47,6 +52,36 @@ mod tests {
             }
         };
     }
+
+    macro_rules! roundtrip_heartbeat_message_test {
+        (
+        $name:ident {
+            message: $message:expr
+        }
+        ) => {
+            roundtrip_message_test!($name {
+                message: $message,
+                serializer: gen_heartbeat_message,
+                deserializer: heartbeat_message,
+            });
+        };
+    }
+
+    roundtrip_heartbeat_message_test!(test_roundtrip_heartbeat_message_dp {
+        message: HeartbeatMessage::new(ProtocolName::new(b"DarkPlaces".to_vec()).unwrap(),)
+    });
+
+    roundtrip_heartbeat_message_test!(test_roundtrip_heartbeat_message_q3a {
+        message: HeartbeatMessage::new(ProtocolName::new(b"QuakeArena-1".to_vec()).unwrap(),)
+    });
+
+    roundtrip_heartbeat_message_test!(test_roundtrip_heartbeat_message_rtcw {
+        message: HeartbeatMessage::new(ProtocolName::new(b"Wolfenstein-1".to_vec()).unwrap(),)
+    });
+
+    roundtrip_heartbeat_message_test!(test_roundtrip_heartbeat_message_woet {
+        message: HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),)
+    });
 
     macro_rules! roundtrip_getservers_message_test {
         (

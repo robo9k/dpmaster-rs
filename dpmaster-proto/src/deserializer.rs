@@ -3,10 +3,11 @@
 use crate::error::DeserializationError;
 use crate::messages::{
     FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage,
+    HeartbeatMessage, ProtocolName,
 };
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
-use nom::character::is_digit;
+use nom::character::{is_digit, is_newline};
 use nom::combinator::opt;
 use nom::multi::{many_till, separated_list0};
 use nom::number::complete::{be_u16, be_u8};
@@ -16,6 +17,33 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 
 fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
     tag(b"\xFF\xFF\xFF\xFF")(input)
+}
+
+fn protocol_name(input: &[u8]) -> IResult<&[u8], ProtocolName, DeserializationError<&[u8]>> {
+    let (input, protocol_name) = take_while1(|chr| !(is_newline(chr)))(input)?;
+    Ok((input, ProtocolName::new(protocol_name.to_vec()).unwrap())) // TODO
+}
+
+fn heartbeat_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
+    tag(b"heartbeat")(input)
+}
+
+fn heartbeat_payload(
+    input: &[u8],
+) -> IResult<&[u8], HeartbeatMessage, DeserializationError<&[u8]>> {
+    let (input, (_, protocol_name, _)) =
+        tuple((take_while1(is_space), protocol_name, take_while(is_newline)))(input)?;
+    Ok((input, HeartbeatMessage::new(protocol_name)))
+}
+
+pub fn heartbeat(input: &[u8]) -> IResult<&[u8], HeartbeatMessage, DeserializationError<&[u8]>> {
+    preceded(heartbeat_command, heartbeat_payload)(input)
+}
+
+pub fn heartbeat_message(
+    input: &[u8],
+) -> IResult<&[u8], HeartbeatMessage, DeserializationError<&[u8]>> {
+    preceded(message_prefix, heartbeat)(input)
 }
 
 fn getservers_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
@@ -168,6 +196,58 @@ pub fn getserversresponse_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_heartbeat_message_dp() {
+        let data = &b"heartbeat DarkPlaces\x0A"[..];
+        let result = heartbeat(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                HeartbeatMessage::new(ProtocolName::new(b"DarkPlaces".to_vec()).unwrap(),)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_heartbeat_message_q3a() {
+        let data = &b"heartbeat QuakeArena-1\x0A"[..];
+        let result = heartbeat(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                HeartbeatMessage::new(ProtocolName::new(b"QuakeArena-1".to_vec()).unwrap(),)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_heartbeat_message_rtcw() {
+        let data = &b"heartbeat Wolfenstein-1\x0A"[..];
+        let result = heartbeat(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                HeartbeatMessage::new(ProtocolName::new(b"Wolfenstein-1".to_vec()).unwrap(),)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_heartbeat_message_woet() {
+        let data = &b"heartbeat EnemyTerritory-1\x0A"[..];
+        let result = heartbeat(data);
+        assert_eq!(
+            result,
+            Ok((
+                &vec![][..],
+                HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),)
+            ))
+        );
+    }
 
     #[test]
     fn test_getservers_message_q3a() {

@@ -4,6 +4,47 @@ use crate::{ProtocolError, Result};
 
 use memchr::memchr2;
 
+// protocol name
+#[derive(Debug, PartialEq, Eq)]
+pub struct ProtocolName(Vec<u8>);
+
+impl ProtocolName {
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+        let bytes = t.into();
+        Ok(Self(bytes))
+    }
+}
+
+impl<I: std::slice::SliceIndex<[u8]>> std::ops::Index<I> for ProtocolName {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        std::ops::Index::index(&self.0, index)
+    }
+}
+
+impl std::default::Default for ProtocolName {
+    fn default() -> Self {
+        Self::new(b"DarkPlaces".to_vec()).expect("known value to be valid")
+    }
+}
+
+/// `heartbeat` message
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeartbeatMessage {
+    protocol_name: ProtocolName,
+}
+
+impl HeartbeatMessage {
+    pub fn new(protocol_name: ProtocolName) -> Self {
+        Self { protocol_name }
+    }
+
+    pub fn protocol_name(&self) -> &ProtocolName {
+        &self.protocol_name
+    }
+}
+
 /// protocol number
 pub type ProtocolNumber = u32;
 

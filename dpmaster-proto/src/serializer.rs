@@ -1,7 +1,8 @@
 //! serializer for messages
 
 use crate::messages::{
-    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage, ProtocolNumber,
+    FilterOptions, GameName, Gametype, GetServersMessage, GetServersResponseMessage,
+    HeartbeatMessage, ProtocolName, ProtocolNumber,
 };
 use cookie_factory::bytes::{be_u16, be_u8};
 use cookie_factory::combinator::{cond, slice, string};
@@ -12,6 +13,23 @@ use std::io::Write;
 
 fn gen_message_prefix<W: Write>() -> impl SerializeFn<W> {
     slice(b"\xFF\xFF\xFF\xFF")
+}
+
+fn gen_protocol_name<'a, 'b: 'a, W: Write + 'a>(
+    protocol_name: &'b ProtocolName,
+) -> impl SerializeFn<W> + 'a {
+    slice(&protocol_name[..])
+}
+
+pub fn gen_heartbeat_message<'a, 'b: 'a, W: Write + 'a>(
+    message: &'b HeartbeatMessage,
+) -> impl SerializeFn<W> + 'a {
+    tuple((
+        gen_message_prefix(),
+        slice(b"heartbeat "),
+        gen_protocol_name(message.protocol_name()),
+        slice(b"\n"),
+    ))
 }
 
 fn gen_game_name<'a, 'b: 'a, W: Write + 'a>(game_name: &'b GameName) -> impl SerializeFn<W> + 'a {
@@ -109,6 +127,30 @@ mod tests {
             }
         };
     }
+
+    gen_message_test!(test_gen_heartbeat_message_dp {
+        message: HeartbeatMessage::new(ProtocolName::new(b"DarkPlaces".to_vec()).unwrap(),),
+        function: gen_heartbeat_message,
+        buffer: &b"\xFF\xFF\xFF\xFFheartbeat DarkPlaces\x0A"[..]
+    });
+
+    gen_message_test!(test_gen_heartbeat_message_q3a {
+        message: HeartbeatMessage::new(ProtocolName::new(b"QuakeArena-1".to_vec()).unwrap(),),
+        function: gen_heartbeat_message,
+        buffer: &b"\xFF\xFF\xFF\xFFheartbeat QuakeArena-1\x0A"[..]
+    });
+
+    gen_message_test!(test_gen_heartbeat_message_rtcw {
+        message: HeartbeatMessage::new(ProtocolName::new(b"Wolfenstein-1".to_vec()).unwrap(),),
+        function: gen_heartbeat_message,
+        buffer: &b"\xFF\xFF\xFF\xFFheartbeat Wolfenstein-1\x0A"[..]
+    });
+
+    gen_message_test!(test_gen_heartbeat_message_woet {
+        message: HeartbeatMessage::new(ProtocolName::new(b"EnemyTerritory-1".to_vec()).unwrap(),),
+        function: gen_heartbeat_message,
+        buffer: &b"\xFF\xFF\xFF\xFFheartbeat EnemyTerritory-1\x0A"[..]
+    });
 
     gen_message_test!(test_gen_getservers_message_q3a {
         message: GetServersMessage::new(
