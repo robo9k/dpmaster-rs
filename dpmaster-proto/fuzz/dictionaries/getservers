@@ -1,0 +1,12 @@
+# https://llvm.org/docs/LibFuzzer.html#dictionaries
+
+oob="\xFF\xFF\xFF\xFF"
+command="getservers"
+space=" "
+empty="empty"
+full="full"
+gametype="gametype="
+ffa="ffa"
+tourney="tourney"
+team="team"
+ctf="ctf"

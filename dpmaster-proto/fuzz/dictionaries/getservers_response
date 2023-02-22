@@ -1,0 +1,6 @@
+# https://llvm.org/docs/LibFuzzer.html#dictionaries
+
+oob="\xFF\xFF\xFF\xFF"
+command="getserversResponse"
+backslash="\\"
+eot="EOT\x00\x00\x00"

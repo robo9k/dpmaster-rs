@@ -1,0 +1,5 @@
+# https://llvm.org/docs/LibFuzzer.html#dictionaries
+
+oob="\xFF\xFF\xFF\xFF"
+command="getinfo"
+space=" "

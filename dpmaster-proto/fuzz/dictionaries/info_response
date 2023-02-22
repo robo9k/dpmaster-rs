@@ -1,0 +1,6 @@
+# https://llvm.org/docs/LibFuzzer.html#dictionaries
+
+oob="\xFF\xFF\xFF\xFF"
+command="infoResponse"
+linefeed="\x0A"
+backslash="\\"
