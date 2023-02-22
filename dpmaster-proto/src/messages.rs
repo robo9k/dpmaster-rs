@@ -1,4 +1,17 @@
-//! protocol messages
+//! Protocol datagram "messages" and related types
+//!
+//! The dpmaster protocol consists of a few messages that are passed between game servers and the master server to register a game server:
+//! - [`heartbeat`](HeartbeatMessage)
+//! - [`getinfo`](GetInfoMessage)
+//! - [`infoResponse`](InfoResponseMessage)
+//!
+//! Then there are message that are passed between game clients and the master server to query game servers:
+//! - [`getservers`](GetServersMessage)
+//! - [`getserversResponse`](GetServersResponseMessage)
+//!
+//! To support [IPv6](https://en.wikipedia.org/wiki/IPv6) there are extended versions of the previous messages:
+//! - [`getserversExt`](GetServersExtMessage)
+//! - [`getserversExtResponse`](GetServersExtResponseMessage)
 
 use crate::{ProtocolError, Result};
 
@@ -8,11 +21,29 @@ fn is_ascii_printable(chr: u8) -> bool {
     chr >= 33 && chr <= 126
 }
 
-// challenge
+/// Challenge to authenticate messages
+///
+/// The dpmaster protocol uses [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol) which is spoofable so, to authenticate datagrams and prevent denial-of-service in the [`heartbeat`](HeartbeatMessage) → [`getinfo`](GetInfoMessage) → [`infoResponse`](InfoResponseMessage) chain,
+/// a "password" is used that should only be known to the game server and the master server.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Challenge(Vec<u8>);
 
 impl Challenge {
+    /// Creates a new challenge from a container of bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let challenge = dpmaster_proto::Challenge::new(*b"A_ch4Lleng3")?;
+    /// # Ok::<(), dpmaster_proto::ProtocolError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// A challenge must not be empty.
+    ///
+    /// All printable characters but 5 are allowed (from [ASCII](https://en.wikipedia.org/wiki/ASCII) code 33 to 126).
+    /// The 5 exceptions are characters `\`, `/`, `;`, `"` and `%`.
     pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
         let bytes = t.into();
 
