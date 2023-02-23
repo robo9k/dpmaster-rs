@@ -13,7 +13,7 @@ pub use messages::{
 
 pub use crate::error::ProtocolError;
 /// [std::result::Result] alias with [ProtocolError] as `Err`
-pub type Result<T> = std::result::Result<T, ProtocolError>;
+pub type Result<T, E = ProtocolError> = std::result::Result<T, E>;
 
 #[cfg(test)]
 mod tests {

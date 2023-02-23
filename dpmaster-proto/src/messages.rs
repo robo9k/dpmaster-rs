@@ -13,6 +13,7 @@
 //! - [`getserversExt`](GetServersExtMessage)
 //! - [`getserversExtResponse`](GetServersExtResponseMessage)
 
+use crate::error::{EmptyError, InvalidByteError, InvalidChallengeError};
 use crate::{ProtocolError, Result};
 
 use memchr::memchr2;
@@ -40,16 +41,31 @@ impl Challenge {
     ///
     /// # Errors
     ///
-    /// A challenge must not be empty.
+    /// Will return an [EmptyError](crate::error::EmptyError) if the supplied bytes are empty.
+    /// ```rust
+    /// use dpmaster_proto::{error::InvalidChallengeError, messages::Challenge};
     ///
-    /// All printable characters but 5 are allowed (from [ASCII](https://en.wikipedia.org/wiki/ASCII) code 33 to 126).
-    /// The 5 exceptions are characters `\`, `/`, `;`, `"` and `%`.
-    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self> {
+    /// assert!(matches!(Challenge::new(*b"").unwrap_err(), InvalidChallengeError::Empty(..)));
+    /// ```
+    ///
+    /// Will return [InvalidByteError](crate::error::InvalidByteError) if a supplied byte is not [ASCII](https://en.wikipedia.org/wiki/ASCII) printable (code 33 to 126)
+    /// or is one of the disallowed characters `\`, `/`, `;`, `"` or `%`.
+    /// ```rust
+    /// use dpmaster_proto::{error::InvalidChallengeError, messages::Challenge};
+    ///
+    /// assert!(matches!(Challenge::new(*b"\xFF").unwrap_err(), InvalidChallengeError::InvalidByte(..)));
+    /// assert!(matches!(Challenge::new(*b"uhoh;").unwrap_err(), InvalidChallengeError::InvalidByte(..)));
+    /// ```
+    pub fn new<T: Into<Vec<u8>>>(t: T) -> Result<Self, InvalidChallengeError> {
         let bytes = t.into();
+
+        if bytes.is_empty() {
+            return Err(EmptyError)?;
+        }
 
         for (offset, byte) in bytes.iter().copied().enumerate() {
             if !is_ascii_printable(byte) || [b'\\', b'/', b';', b'"', b'%'].contains(&byte) {
-                return Err(ProtocolError::InvalidChallenge { offset, byte });
+                return Err(InvalidByteError(offset, bytes))?;
             }
         }
 

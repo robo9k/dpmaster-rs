@@ -2,12 +2,32 @@
 
 use thiserror::Error;
 
+/// Empty value error
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[error("is empty")]
+pub struct EmptyError;
+
+/// Invalid byte error
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[error("contains invalid byte {} at {:x}", .1[*.0], .0)]
+pub struct InvalidByteError(pub(crate) usize, pub(crate) Vec<u8>);
+
+/// Errors for [Challenge](crate::messages::Challenge)
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum InvalidChallengeError {
+    #[error(transparent)]
+    Empty(#[from] EmptyError),
+    #[error(transparent)]
+    InvalidByte(#[from] InvalidByteError),
+}
+
 /// Possible crate errors
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ProtocolError {
     /// Invalid [`crate::Challenge`]
-    #[error("Invalid challenge ({byte} at {offset})")]
-    InvalidChallenge { byte: u8, offset: usize },
+    #[error(transparent)]
+    InvalidChallenge(#[from] InvalidChallengeError),
+
     /// Invalid [`crate::GameName`]
     #[error("Invalid game name ({byte} at {offset})")]
     InvalidGameName { byte: u8, offset: usize },
