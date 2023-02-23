@@ -9,7 +9,7 @@ use crate::messages::{
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::{is_digit, is_newline};
-use nom::combinator::opt;
+use nom::combinator::{opt, rest};
 use nom::multi::{many1, many_till, separated_list0};
 use nom::number::complete::{be_u16, be_u8};
 use nom::sequence::{preceded, tuple};
@@ -52,7 +52,7 @@ fn getinfo_command(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&
 }
 
 fn challenge(input: &[u8]) -> IResult<&[u8], Challenge, DeserializationError<&[u8]>> {
-    let (input, challenge) = take_while1(|_| true)(input)?;
+    let (input, challenge) = rest(input)?;
     Ok((input, Challenge::new(challenge.to_vec()).unwrap())) // TODO
 }
 
