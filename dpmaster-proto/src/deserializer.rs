@@ -10,14 +10,121 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::{is_digit, is_newline};
 use nom::combinator::{opt, rest};
+use nom::error::context;
 use nom::multi::{many1, many_till, separated_list0};
 use nom::number::complete::{be_u16, be_u8};
 use nom::sequence::{preceded, tuple};
 use nom::IResult;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-fn message_prefix(input: &[u8]) -> IResult<&[u8], &[u8], DeserializationError<&[u8]>> {
-    tag(b"\xFF\xFF\xFF\xFF")(input)
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum ErrorKind {
+    MessagePrefix,
+}
+
+pub trait ParseError<I>: nom::error::ParseError<I> {
+    fn from_dpmaster_error_kind(input: I, kind: ErrorKind) -> Self;
+    fn append_dpmaster(input: I, kind: ErrorKind, other: Self) -> Self;
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum VerboseErrorKind {
+    Context(&'static str),
+    Char(char),
+    Nom(nom::error::ErrorKind),
+    Dpmaster(ErrorKind),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VerboseError<I> {
+    pub errors: Vec<(I, VerboseErrorKind)>,
+}
+
+impl<I> nom::error::ParseError<I> for VerboseError<I> {
+    fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
+        VerboseError {
+            errors: vec![(input, VerboseErrorKind::Nom(kind))],
+        }
+    }
+
+    fn append(input: I, kind: nom::error::ErrorKind, mut other: Self) -> Self {
+        other.errors.push((input, VerboseErrorKind::Nom(kind)));
+        other
+    }
+
+    fn from_char(input: I, c: char) -> Self {
+        VerboseError {
+            errors: vec![(input, VerboseErrorKind::Char(c))],
+        }
+    }
+}
+
+impl<I> ParseError<I> for () {
+    fn from_dpmaster_error_kind(_: I, _: ErrorKind) -> Self {}
+
+    fn append_dpmaster(_: I, _: ErrorKind, _: Self) -> Self {}
+}
+
+impl<I> ParseError<I> for VerboseError<I> {
+    fn from_dpmaster_error_kind(input: I, kind: ErrorKind) -> Self {
+        VerboseError {
+            errors: vec![(input, VerboseErrorKind::Dpmaster(kind))],
+        }
+    }
+
+    fn append_dpmaster(input: I, kind: ErrorKind, mut other: Self) -> Self {
+        other.errors.push((input, VerboseErrorKind::Dpmaster(kind)));
+        other
+    }
+}
+
+impl<I> nom::error::ContextError<I> for VerboseError<I> {
+    fn add_context(input: I, ctx: &'static str, mut other: Self) -> Self {
+        other.errors.push((input, VerboseErrorKind::Context(ctx)));
+        other
+    }
+}
+
+impl<I: std::fmt::Display> std::fmt::Display for VerboseError<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Parse error:")?;
+        for (input, error) in &self.errors {
+            match error {
+                VerboseErrorKind::Dpmaster(e) => writeln!(f, "{:?} at: {}", e, input)?,
+                VerboseErrorKind::Nom(e) => writeln!(f, "{:?} at: {}", e, input)?,
+                VerboseErrorKind::Char(c) => writeln!(f, "expected '{}' at: {}", c, input)?,
+                VerboseErrorKind::Context(s) => writeln!(f, "in section '{}', at: {}", s, input)?,
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn append<I: Clone, E: ParseError<I>, F, O>(
+    kind: ErrorKind,
+    mut f: F,
+) -> impl FnMut(I) -> IResult<I, O, E>
+where
+    F: nom::Parser<I, O, E>,
+{
+    move |i: I| match f.parse(i.clone()) {
+        Ok(o) => Ok(o),
+        Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
+        Err(nom::Err::Error(e)) => Err(nom::Err::Error(E::append_dpmaster(i, kind, e))),
+        Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(E::append_dpmaster(i, kind, e))),
+    }
+}
+
+/// Parser for the `\xFF\xFF\xFF\xFF` message prefix
+pub fn message_prefix<'a, Error>(input: &'a [u8]) -> nom::IResult<&'a [u8], &'a [u8], Error>
+where
+    Error: ParseError<&'a [u8]> + nom::error::ContextError<&'a [u8]>,
+{
+    context(
+        "message prefix",
+        append(ErrorKind::MessagePrefix, tag(b"\xFF\xFF\xFF\xFF")),
+    )(input)
 }
 
 fn protocol_name(input: &[u8]) -> IResult<&[u8], ProtocolName, DeserializationError<&[u8]>> {
@@ -274,34 +381,49 @@ mod tests {
 
     #[test]
     fn test_message_prefix_empty() {
-        let data = b"";
-        let result = message_prefix(data);
+        let data = &b""[..];
+        let result = message_prefix::<VerboseError<_>>(data);
         assert_eq!(
             result,
-            Err(nom::Err::Error(crate::error::DeserializationError::Nom(
-                &vec![][..],
-                nom::error::ErrorKind::Tag
-            )))
+            Err(nom::Err::Error(VerboseError {
+                errors: vec![
+                    (&b""[..], VerboseErrorKind::Nom(nom::error::ErrorKind::Tag)),
+                    (
+                        &b""[..],
+                        VerboseErrorKind::Dpmaster(ErrorKind::MessagePrefix)
+                    ),
+                    (&b""[..], VerboseErrorKind::Context("message prefix")),
+                ]
+            }))
         );
     }
 
     #[test]
     fn test_message_prefix_invalid() {
-        let data = b"hurz";
-        let result = message_prefix(data);
+        let data = &b"hurz"[..];
+        let result = message_prefix::<VerboseError<_>>(data);
         assert_eq!(
             result,
-            Err(nom::Err::Error(crate::error::DeserializationError::Nom(
-                &b"hurz"[..],
-                nom::error::ErrorKind::Tag
-            )))
+            Err(nom::Err::Error(VerboseError {
+                errors: vec![
+                    (
+                        &b"hurz"[..],
+                        VerboseErrorKind::Nom(nom::error::ErrorKind::Tag)
+                    ),
+                    (
+                        &b"hurz"[..],
+                        VerboseErrorKind::Dpmaster(ErrorKind::MessagePrefix)
+                    ),
+                    (&b"hurz"[..], VerboseErrorKind::Context("message prefix")),
+                ]
+            }))
         );
     }
 
     #[test]
     fn test_message_prefix() {
         let data = b"\xFF\xFF\xFF\xFF";
-        let result = message_prefix(data);
+        let result = message_prefix::<()>(data);
         assert_eq!(result, Ok((&b""[..], &b"\xFF\xFF\xFF\xFF"[..])));
     }
 

@@ -44,6 +44,17 @@ pub enum ProtocolError {
 #[derive(Debug, PartialEq)]
 pub enum DeserializationError<I> {
     Nom(I, nom::error::ErrorKind),
+    Dpmaster(I, crate::deserializer::ErrorKind),
+}
+
+impl<I> crate::deserializer::ParseError<I> for DeserializationError<I> {
+    fn from_dpmaster_error_kind(input: I, kind: crate::deserializer::ErrorKind) -> Self {
+        Self::Dpmaster(input, kind)
+    }
+
+    fn append_dpmaster(_input: I, _kind: crate::deserializer::ErrorKind, other: Self) -> Self {
+        other
+    }
 }
 
 impl<I> nom::error::ParseError<I> for DeserializationError<I> {
