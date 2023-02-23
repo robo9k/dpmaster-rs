@@ -273,6 +273,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_message_prefix_empty() {
+        let data = b"";
+        let result = message_prefix(data);
+        assert_eq!(
+            result,
+            Err(nom::Err::Error(crate::error::DeserializationError::Nom(
+                &vec![][..],
+                nom::error::ErrorKind::Tag
+            )))
+        );
+    }
+
+    #[test]
+    fn test_message_prefix_invalid() {
+        let data = b"hurz";
+        let result = message_prefix(data);
+        assert_eq!(
+            result,
+            Err(nom::Err::Error(crate::error::DeserializationError::Nom(
+                &b"hurz"[..],
+                nom::error::ErrorKind::Tag
+            )))
+        );
+    }
+
+    #[test]
+    fn test_message_prefix() {
+        let data = b"\xFF\xFF\xFF\xFF";
+        let result = message_prefix(data);
+        assert_eq!(result, Ok((&b""[..], &b"\xFF\xFF\xFF\xFF"[..])));
+    }
+
+    #[test]
     fn test_heartbeat_message_dp() {
         let data = &b"heartbeat DarkPlaces\x0A"[..];
         let result = heartbeat(data);
