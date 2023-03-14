@@ -14,3 +14,10 @@ memchr = "2.3.4"
 indexmap = "1.0.0"
 
 [features]
+
+[dev-dependencies]
+bolero = "0.8.0"
+
+[[test]]
+name = "getinfo"
+harness = false

@@ -6,6 +6,8 @@ in pkgs.mkShell {
   buildInputs = [
     rust
     pkgs.rustup
+    pkgs.libbfd pkgs.libunwind pkgs.libopcodes
+    pkgs.python39 pkgs.python39Packages.pip
     # keep this line if you use bash
     pkgs.bashInteractive
   ];
