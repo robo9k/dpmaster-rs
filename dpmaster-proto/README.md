@@ -16,3 +16,11 @@ sequenceDiagram
     Game server->>Master server: infoResponse
     Note right of Game server: A_ch4Lleng3
 ```
+
+```mermaid
+sequenceDiagram
+    Game client->>Master server: getservers
+    loop EOT
+        Master server->>Game client: getserversResponse
+    end
+```
