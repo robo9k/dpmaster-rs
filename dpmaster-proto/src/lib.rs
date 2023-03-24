@@ -1,5 +1,25 @@
 //#![warn(missing_docs)]
 
+//! Lorem ipsum
+//! ## Message flows
+//!
+//! Lorem ipsum.
+//!
+//! ### `heartbeat` message flow
+//!
+//! ❶ Game server sends `heartbeat` message to master server
+//!
+//! ❷ Master server sends `getinfo` message with new challenge back to game server
+//!
+//! ❸ Game server sends `infoResponse` message with same challenge back to master server
+#![doc=include_str!("../assets/message-flow-heartbeat.svg")]
+//! ### `getservers` message flow
+//!
+//! ❶ Game client sends `getservers` message to master server
+//!
+//! ❷ Master server sends `getserversResponse` message(s) back to game client
+#![doc=include_str!("../assets/message-flow-getservers.svg")]
+
 pub mod deserializer;
 pub mod error;
 pub mod messages;

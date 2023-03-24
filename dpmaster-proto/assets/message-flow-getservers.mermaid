@@ -1,0 +1,6 @@
+sequenceDiagram
+    autonumber
+    Game client->>Master server: getservers
+    loop EOT
+        Master server->>Game client: getserversResponse
+    end
