@@ -241,7 +241,7 @@ impl HeartbeatMessage {
 pub type ProtocolNumber = u32;
 
 /// game name
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GameName(Vec<u8>);
 
 impl GameName {
@@ -296,7 +296,7 @@ impl std::str::FromStr for GameName {
 }
 
 /// game type
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GameType(Vec<u8>);
 
 impl GameType {

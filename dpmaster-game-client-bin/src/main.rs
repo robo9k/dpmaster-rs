@@ -27,27 +27,27 @@ enum SubCommand {
 #[derive(clap::Parser, Debug)]
 struct GetServersOpts {
     /// Address of the master server to query, e.g. `master.ioquake3.org:27950`
-    #[clap(short, long)]
+    #[arg(short, long)]
     master_server: String,
 
     /// Game name to query for, e.g. `Quake3Arena`
-    #[clap(short = 'n', long, parse(try_from_str))]
+    #[arg(short = 'n', long)]
     game_name: Option<GameName>,
 
     /// Protocol version to query for, e.g. `68`
-    #[clap(short, long)]
+    #[arg(short, long)]
     protocol_number: u32,
 
     /// Game type to query for, e.g. `4` for CTF in Q3A
-    #[clap(short = 't', long, parse(try_from_str))]
+    #[arg(short = 't', long)]
     game_type: Option<GameType>,
 
     /// Ask for empty servers in query
-    #[clap(short, long)]
+    #[arg(short, long)]
     empty: bool,
 
     /// Ask for full servers in query
-    #[clap(short, long)]
+    #[arg(short, long)]
     full: bool,
 }
 
