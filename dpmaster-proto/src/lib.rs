@@ -1,11 +1,40 @@
 //#![warn(missing_docs)]
 
-//! Lorem ipsum
+//! `dpmaster` protocol
+//!
+//! ## `dpmaster`
+//!
+//! `dpmaster`, "an open master server",
+//! is both a generic protocol to register game servers with a master server and query them from game clients
+//! as well as a reference master server implementation written in the C programming language.
+//!
+//! This crate implements the `dpmaster` wire protocol as defined in its ["Technical information" documentation](https://hg.icculus.org/molivier/dpmaster/file/tip/doc/techinfo.txt).
+//!
+//! ## `dpmaster` protocol
+//!
+//! The `dpmaster` protocol is a custom UDP protocol where datagram packets contain a mix of binary delimiters as well as ASCII text.\
+//! Neither the protocol nor its specification are versioned, but they have not changed for a couple of years.
+//!
+//! This crate implements (de)serialization of (not-yet all) packets, which the spec calls messages:
+//! * [`heartbeat` message](crate::messages::HeartbeatMessage)
+//! * [`getinfo` message](crate::messages::GetInfoMessage)
+//! * [`infoResponse` message](crate::messages::InfoResponseMessage)
+//! * [`getservers` message](crate::messages::GetServersMessage)
+//! * [`getserversResponse` message](crate::messages::GetServersResponseMessage)
+//! * [`getserversExt` message](crate::messages::GetServersExtMessage)
+//! * [`getserversExtResponse` message](crate::messages::GetServersExtResponseMessage)
+//!
+//!
 //! ## Message flows
 //!
-//! Lorem ipsum.
+//! The "master server" concept is that there is a central server instance, e.g. at `master.example:27950`, that all game servers report to.\
+//! Game servers then register themselves with the master server, e.g. their IPs `192.0.2.1:27960` / `[2001:db8::1]:27964` aswell as some [`Info`](crate::messages::Info) metadata.\
+//! Game clients query the master server for a (filtered) list of game servers.
 //!
 //! ### `heartbeat` message flow
+//!
+//! The "heartbeat" message flow registers a game server with the master server.\
+//! It should be initiated by game servers when their configuration changes and periodically to remain registered with the master server.
 //!
 //! ❶ Game server sends `heartbeat` message to master server
 //!
@@ -13,12 +42,24 @@
 //!
 //! ❸ Game server sends `infoResponse` message with same challenge back to master server
 #![doc=include_str!("../assets/message-flow-heartbeat.svg")]
+//!
 //! ### `getservers` message flow
+//!
+//! The "getservers" message flow queries a master server for game servers.\
+//! It is initiated by game clients e.g. when they want to display a list of servers in their UI so players can decide which one to connect to.
 //!
 //! ❶ Game client sends `getservers` message to master server
 //!
 //! ❷ Master server sends `getserversResponse` message(s) back to game client
 #![doc=include_str!("../assets/message-flow-getservers.svg")]
+//!
+//! ## `dpmaster-proto` crate
+//!
+//! This crate implements the `dpmaster` protocol wire format, i.e. it allows to serialize and deserialize protocol messages as bytes to and from UDP packets.\
+//! It does however not contain logic (["sans I/O"](https://sans-io.readthedocs.io/)), e.g. to implement a master server, game server or game client.\
+//!
+//! The `dpmaster-codec` crate implements Tokio codecs on top of this protocol crate.\
+//! The `dpmaster-game-client-bin` crate implements a "game client" on top of a codec in form of a command-line-interface to query a master server for game servers.
 
 pub mod deserializer;
 pub mod error;
