@@ -5,7 +5,7 @@ use thiserror::Error;
 /// Empty value error
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 #[error("is empty")]
-pub struct EmptyError;
+pub struct EmptyError(pub(crate) ());
 
 /// Invalid byte error
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
